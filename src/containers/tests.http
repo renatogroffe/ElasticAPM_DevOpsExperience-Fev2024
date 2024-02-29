@@ -1,0 +1,12 @@
+# @name APIOrquestracao
+GET http://localhost:8001/orquestracao
+
+###
+
+# @name APIContagemRedis
+GET http://localhost:8002/contador
+
+###
+
+# @name APIContagemPostegreSQL
+GET http://localhost:8003/contador

@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres
+    volumes:
+      - ./BaseContagemPostgreSql.sql:/docker-entrypoint-initdb.d/BaseContagemPostgreSql.sql
+    environment:
+      POSTGRES_PASSWORD: "Postgres2024!"
+    ports:
+      - "5432:5432"
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.0
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.16.0
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:7.16.0
+    container_name: apm-server
+    ports:
+      - "8200:8200"
+      - "8201:8200"
+    environment:
+      - output.elasticsearch.hosts=['http://elasticsearch:9200']
+      - apm-server.host="0.0.0.0:8200"
+      - setup.kibana.host="kibana:5601"
+    depends_on:
+      - elasticsearch
+  contagemredis:
+    image: renatogroffe/apicontagem-dotnet8-elasticapm-redis:1
+    depends_on:
+      - redis
+      - apm-server
+    environment:
+      ConnectionStrings__Redis: redis
+      ElasticApm__ServerUrls: "http://apm-server:8200"
+    ports:
+      - "8002:8080"
+  contagempostgres:
+    image: renatogroffe/apicontagem-dotnet8-elasticapm-postgres:1
+    depends_on:
+      - postgres
+      - apm-server
+    environment:
+      ConnectionStrings__BaseContagem: "Server=postgres;Port=5432;Database=basecontagem;User Id=postgres;Password=Postgres2024!"
+      ElasticApm__ServerUrls: "http://apm-server:8200"
+    ports:
+      - "8003:8080"
+  orquestrador:
+    image: renatogroffe/apiorquestracao-dotnet8-elasticapm:1
+    depends_on:
+      - contagemredis
+      - contagempostgres
+      - apm-server
+    environment:
+      ApiContagemRedis: "http://contagemredis:8080/contador"
+      APIContagemPostgreSQL: "http://contagempostgres:8080/contador"
+      ElasticApm__ServerUrls: "http://apm-server:8200"
+    ports:
+      - "8001:8080"

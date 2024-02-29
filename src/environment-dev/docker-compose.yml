@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres
+    volumes:
+      - ./BaseContagemPostgreSql.sql:/docker-entrypoint-initdb.d/BaseContagemPostgreSql.sql
+    environment:
+      POSTGRES_PASSWORD: "Postgres2024!"
+    ports:
+      - "5432:5432"
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.0
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.16.0
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:7.16.0
+    container_name: apm-server
+    ports:
+      - "8200:8200"
+      - "8201:8200"
+    environment:
+      - output.elasticsearch.hosts=['http://elasticsearch:9200']
+      - apm-server.host="0.0.0.0:8200"
+      - setup.kibana.host="kibana:5601"
+    depends_on:
+      - elasticsearch
